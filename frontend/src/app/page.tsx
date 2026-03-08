@@ -69,6 +69,35 @@ function MapPinIcon() {
   );
 }
 
+function PlayIcon() {
+  return (
+    <svg
+      className="musicIcon"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M8 6L18 12L8 18V6Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg
+      className="musicIcon"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="7" y="6" width="4" height="12" rx="1" fill="currentColor" />
+      <rect x="13" y="6" width="4" height="12" rx="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "Date TBD";
@@ -99,7 +128,10 @@ function formatTime(iso: string) {
 }
 
 export default function Home() {
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const firstInteractionHandledRef = React.useRef(false);
   const [payload, setPayload] = useState<InvitationConfigPayload | null>(null);
+  const [musicPlaying, setMusicPlaying] = useState(false);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const [rsvpName, setRsvpName] = useState("");
   const [rsvpPhone, setRsvpPhone] = useState("");
@@ -115,6 +147,20 @@ export default function Home() {
   } | null>(null);
   useScrollReveal();
   useScrollProgress();
+
+  const attemptPlay = React.useCallback(async () => {
+    const audio = audioRef.current;
+    if (!audio) return false;
+    try {
+      audio.muted = false;
+      audio.volume = 1;
+      await audio.play();
+      return true;
+    } catch {
+      setMusicPlaying(false);
+      return false;
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -139,6 +185,91 @@ export default function Home() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [rsvpOpen]);
+
+  useEffect(() => {
+    let disposed = false;
+    let retries = 0;
+    let retryTimer: number | null = null;
+
+    const tryAutoplay = () => {
+      if (disposed) return;
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (!audio.paused) return;
+      void attemptPlay();
+    };
+
+    // Immediate attempt
+    tryAutoplay();
+
+    // Retry a few times while the media is buffering/loading.
+    retryTimer = window.setInterval(() => {
+      const audio = audioRef.current;
+      if (disposed || !audio) return;
+      if (!audio.paused) {
+        if (retryTimer !== null) {
+          window.clearInterval(retryTimer);
+          retryTimer = null;
+        }
+        return;
+      }
+      retries += 1;
+      void attemptPlay();
+      if (retries >= 10 && retryTimer !== null) {
+        window.clearInterval(retryTimer);
+        retryTimer = null;
+      }
+    }, 1200);
+
+    window.addEventListener("load", tryAutoplay, { once: true });
+    window.addEventListener("pageshow", tryAutoplay, { once: true });
+
+    const audio = audioRef.current;
+    audio?.addEventListener("loadeddata", tryAutoplay);
+    audio?.addEventListener("canplay", tryAutoplay);
+    audio?.addEventListener("canplaythrough", tryAutoplay);
+
+    return () => {
+      disposed = true;
+      if (retryTimer !== null) window.clearInterval(retryTimer);
+      window.removeEventListener("load", tryAutoplay);
+      window.removeEventListener("pageshow", tryAutoplay);
+      audio?.removeEventListener("loadeddata", tryAutoplay);
+      audio?.removeEventListener("canplay", tryAutoplay);
+      audio?.removeEventListener("canplaythrough", tryAutoplay);
+    };
+  }, [attemptPlay]);
+
+  useEffect(() => {
+    const startPlaybackOnFirstInteraction = () => {
+      if (firstInteractionHandledRef.current) return;
+      firstInteractionHandledRef.current = true;
+      void attemptPlay();
+    };
+
+    window.addEventListener("pointerdown", startPlaybackOnFirstInteraction, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener("touchstart", startPlaybackOnFirstInteraction, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener("scroll", startPlaybackOnFirstInteraction, {
+      once: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", startPlaybackOnFirstInteraction, {
+      once: true,
+    });
+
+    return () => {
+      window.removeEventListener("pointerdown", startPlaybackOnFirstInteraction);
+      window.removeEventListener("touchstart", startPlaybackOnFirstInteraction);
+      window.removeEventListener("scroll", startPlaybackOnFirstInteraction);
+      window.removeEventListener("keydown", startPlaybackOnFirstInteraction);
+    };
+  }, [attemptPlay]);
 
   const couple = useMemo(() => {
     const p1 = payload?.couple?.partnerOneName?.trim();
@@ -172,6 +303,25 @@ export default function Home() {
       ceremony: false,
       afterCeremony: false,
     });
+  };
+
+  const playMusic = async () => {
+    void attemptPlay();
+  };
+
+  const pauseMusic = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.pause();
+    setMusicPlaying(false);
+  };
+
+  const toggleMusic = () => {
+    if (musicPlaying) {
+      pauseMusic();
+      return;
+    }
+    void playMusic();
   };
 
   const handleRsvpSubmit = async (ev: React.FormEvent<HTMLFormElement>) => {
@@ -232,6 +382,27 @@ export default function Home() {
       <a className="sr-only" href="#details">
         Skip to invitation details
       </a>
+      <audio
+        ref={audioRef}
+        src="/music/WeddingMusic.mp3"
+        autoPlay
+        loop
+        playsInline
+        preload="auto"
+        onPlay={() => setMusicPlaying(true)}
+        onPause={() => setMusicPlaying(false)}
+        onEnded={() => setMusicPlaying(false)}
+      />
+      <button
+        className={`musicToggle button ${musicPlaying ? "musicToggleActive" : ""}`}
+        type="button"
+        onClick={toggleMusic}
+        title={musicPlaying ? "Pause music" : "Play music"}
+        aria-label={musicPlaying ? "Pause wedding music" : "Play wedding music"}
+        aria-pressed={musicPlaying}
+      >
+        {musicPlaying ? <PauseIcon /> : <PlayIcon />}
+      </button>
 
       <header className="hero sectionBgHero">
         <div className="heroInner">

@@ -801,6 +801,52 @@ html.motion-animate .revealUp[data-reveal].revealVisible {
   border-color: color-mix(in srgb, var(--ink-success) 50%, var(--ink-primary));
 }
 
+.musicToggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 110;
+  display: grid;
+  place-items: center;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-color: color-mix(in srgb, var(--ink-primary) 58%, transparent);
+  background: #ffffff;
+  color: var(--ink-primary);
+  box-shadow: 0 10px 30px rgba(10, 12, 24, 0.2);
+}
+
+.musicToggle:hover {
+  border-color: color-mix(in srgb, var(--ink-primary) 80%, transparent);
+}
+
+.musicToggleActive {
+  background: var(--ink-primary);
+  color: #ffffff;
+  border-color: var(--ink-primary);
+}
+
+.musicToggleActive:hover {
+  border-color: var(--ink-primary);
+}
+
+.musicIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .musicToggle {
+    right: 10px;
+    bottom: 10px;
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .buttonApple {
   background: color-mix(in srgb, #111827 92%, var(--ink-success) 8%);
   color: white;
