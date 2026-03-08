@@ -801,7 +801,7 @@ export default function Home() {
 
       <footer className="footer revealUp" data-reveal data-reveal-delay={40}>
         <p>
-          <strong>{couple.partnerOneName}</strong> &{" ♥ "}
+          <strong>{couple.partnerOneName}</strong> {" ♥ "}
           <strong>{couple.partnerTwoName}</strong>
         </p>
         <p style={{ marginTop: 6 }}>
