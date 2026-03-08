@@ -801,11 +801,11 @@ export default function Home() {
 
       <footer className="footer revealUp" data-reveal data-reveal-delay={40}>
         <p>
-          With love, <strong>{couple.partnerOneName}</strong> &{" "}
+          <strong>{couple.partnerOneName}</strong> &{" ♥ "}
           <strong>{couple.partnerTwoName}</strong>
         </p>
         <p style={{ marginTop: 6 }}>
-          Designed with a classic invitation palette: charcoal, silver, and pink.
+          Our forever begins on April 20, 2026. Thank you for celebrating with us.
         </p>
       </footer>
     </div>
