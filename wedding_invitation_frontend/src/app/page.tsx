@@ -1,24 +1,83 @@
-import React from "react";
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
 import { FloralCorner } from "@/components/FloralCorner";
 import { ParallaxBand } from "@/components/ParallaxBand";
 import { Countdown } from "@/components/Countdown";
 import { EventCtas } from "@/components/EventCtas";
 import { type EventDetails } from "@/lib/actions";
+import {
+  fetchInvitationConfig,
+  payloadToEventDetails,
+  type InvitationConfigPayload,
+} from "@/lib/invitationApi";
 
-const EVENT: EventDetails = {
+const FALLBACK_EVENT: EventDetails = {
   title: "Wedding Celebration",
   description:
     "We’d love for you to join us for our wedding celebration. Ceremony followed by reception.",
   locationName: "The Garden Hall",
   locationAddress: "123 Evergreen Lane, Springvale",
   // Note: keep dates realistic; adjust as desired.
-  // If you want a specific date/time, update these ISO strings.
   startIso: "2026-06-20T16:30:00-04:00",
   endIso: "2026-06-20T22:30:00-04:00",
   url: process.env.NEXT_PUBLIC_FRONTEND_URL ?? "",
 };
 
+const FALLBACK_COUPLE = {
+  partnerOneName: "Avery",
+  partnerTwoName: "Jordan",
+};
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "Date TBD";
+  return d.toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "Time TBD";
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
 export default function Home() {
+  const [payload, setPayload] = useState<InvitationConfigPayload | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    // Fetch after hydration so static export remains buildable and deployable
+    // without the backend being present at build time.
+    fetchInvitationConfig().then((res) => {
+      if (!alive) return;
+      if (res.ok && res.data) setPayload(res.data);
+    });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const couple = useMemo(() => {
+    const p1 = payload?.couple?.partnerOneName?.trim();
+    const p2 = payload?.couple?.partnerTwoName?.trim();
+    return {
+      partnerOneName: p1 || FALLBACK_COUPLE.partnerOneName,
+      partnerTwoName: p2 || FALLBACK_COUPLE.partnerTwoName,
+    };
+  }, [payload]);
+
+  const event = useMemo(() => {
+    if (!payload) return FALLBACK_EVENT;
+    return payloadToEventDetails(payload, FALLBACK_EVENT);
+  }, [payload]);
+
   return (
     <div className="appShell">
       <a className="sr-only" href="#details">
@@ -35,7 +94,9 @@ export default function Home() {
             <FloralCorner className="floralCorner floralBottomRight" />
 
             <p className="kicker">You’re invited</p>
-            <h1 className="title">Avery & Jordan</h1>
+            <h1 className="title">
+              {couple.partnerOneName} & {couple.partnerTwoName}
+            </h1>
             <p className="subtitle">
               With joy in our hearts, we invite you to celebrate our wedding day.
             </p>
@@ -45,39 +106,32 @@ export default function Home() {
             <div className="metaGrid" id="details">
               <div className="metaItem">
                 <div className="metaLabel">Date</div>
-                <div className="metaValue">
-                  {new Date(EVENT.startIso).toLocaleDateString(undefined, {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </div>
+                <div className="metaValue">{formatDate(event.startIso)}</div>
               </div>
               <div className="metaItem">
                 <div className="metaLabel">Time</div>
-                <div className="metaValue">
-                  {new Date(EVENT.startIso).toLocaleTimeString(undefined, {
-                    hour: "numeric",
-                    minute: "2-digit",
-                  })}
-                </div>
+                <div className="metaValue">{formatTime(event.startIso)}</div>
               </div>
               <div className="metaItem">
                 <div className="metaLabel">Venue</div>
-                <div className="metaValue">{EVENT.locationName}</div>
+                <div className="metaValue">{event.locationName}</div>
               </div>
               <div className="metaItem">
                 <div className="metaLabel">Address</div>
-                <div className="metaValue">{EVENT.locationAddress}</div>
+                <div className="metaValue">{event.locationAddress}</div>
               </div>
             </div>
 
             <div style={{ marginTop: 18 }}>
-              <EventCtas event={EVENT} />
+              <EventCtas event={event} />
               <p className="smallNote">
-                Tip: If you don’t use Google Calendar, the <strong>.ics</strong> download
-                works with Apple Calendar, Outlook, and most calendar apps.
+                Tip: If you don’t use Google Calendar, the <strong>.ics</strong>{" "}
+                download works with Apple Calendar, Outlook, and most calendar apps.
+              </p>
+              <p className="smallNote">
+                {payload
+                  ? "Loaded invitation details from the backend."
+                  : "Showing offline defaults (backend config not loaded)."}
               </p>
             </div>
 
@@ -85,7 +139,7 @@ export default function Home() {
               <div className="metaLabel" style={{ marginBottom: 8 }}>
                 Countdown
               </div>
-              <Countdown isoDateTime={EVENT.startIso} />
+              <Countdown isoDateTime={event.startIso} />
             </div>
           </main>
         </div>
@@ -123,9 +177,7 @@ export default function Home() {
           <h2 className="sectionTitle" id="schedule-title">
             Schedule
           </h2>
-          <p className="sectionText">
-            A gentle outline of the day—timing may shift slightly.
-          </p>
+          <p className="sectionText">A gentle outline of the day—timing may shift slightly.</p>
 
           <div className="callouts" style={{ marginTop: 16 }}>
             <div className="calloutCard">
@@ -181,7 +233,7 @@ export default function Home() {
 
           <div style={{ marginTop: 14 }}>
             <div className="metaLabel">Quick links</div>
-            <EventCtas event={EVENT} />
+            <EventCtas event={event} />
           </div>
         </div>
       </ParallaxBand>
@@ -192,8 +244,8 @@ export default function Home() {
             RSVP
           </h2>
           <p className="sectionText">
-            We’re keeping this site lightweight and static. If you’d like RSVP
-            functionality wired to the backend, it can be added as a follow-up step.
+            We’re keeping this site lightweight and static. If you’d like RSVP functionality
+            wired to the backend, it can be added as a follow-up step.
           </p>
 
           <div className="calloutCard" style={{ marginTop: 16 }}>
@@ -207,7 +259,8 @@ export default function Home() {
 
       <footer className="footer">
         <p>
-          With love, <strong>Avery</strong> & <strong>Jordan</strong>
+          With love, <strong>{couple.partnerOneName}</strong> &{" "}
+          <strong>{couple.partnerTwoName}</strong>
         </p>
         <p style={{ marginTop: 6 }}>
           Designed with the Ink theme: slate accents + green florals.
