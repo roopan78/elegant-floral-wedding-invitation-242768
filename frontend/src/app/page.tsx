@@ -419,7 +419,7 @@ export default function Home() {
                   Wedding Invitation
                 </p>
                 <p className="title inviteHost revealUp" data-reveal data-reveal-delay={120}>
-                  Mr. P. Kannan <small>M.Com., M.Phil.,</small> & Mrs. K. Vanitha,
+                  Mr. P. Kannan & Mrs. K. Vanitha,
                 </p>
                 <p className="subtitle inviteLead revealUp" data-reveal data-reveal-delay={170}>
                   We Cordially Solicit your esteemed presence with family
